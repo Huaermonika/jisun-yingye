@@ -1,0 +1,33 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* 深色控制终端配色 */
+  --bg: #0b0e14;
+  --panel: #131824;
+  --panel-2: #1a2130;
+  --line: #2a3248;
+  --line-2: #39445e;
+  --accent: #3fd6c4;
+  --accent-dim: rgba(63, 214, 196, 0.12);
+  --green: #57d97b;
+  --blue: #5aa7ff;
+  --red: #ff5c7a;
+  --amber: #ffc24d;
+  --text: #e9edf5;
+  --muted: #8c96ab;
+
+  --font-ui: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Courier New', monospace;
+}
+
+html,
+body {
+  background: transparent;
+  font-family: var(--font-ui);
+  color: var(--text);
+  line-height: 1.4;
+}

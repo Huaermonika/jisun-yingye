@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "世界": {
+      "type": "object",
+      "properties": {
+        "当前时间": {
+          "type": "string"
+        },
+        "当前地点": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "当前时间",
+        "当前地点"
+      ]
+    },
+    "千鹤": {
+      "type": "object",
+      "properties": {
+        "意识状态": {
+          "type": "string",
+          "enum": [
+            "运行中",
+            "已停止",
+            "已冻结"
+          ]
+        },
+        "身体锁定": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "description": "部位"
+          },
+          "additionalProperties": {
+            "type": "boolean",
+            "description": "是否锁定"
+          }
+        },
+        "认知状态": {
+          "type": "string"
+        },
+        "敏感度": {
+          "type": "number"
+        },
+        "电量": {
+          "type": "number"
+        },
+        "实际着装": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "上装",
+              "下装",
+              "内衣",
+              "袜子",
+              "鞋子",
+              "饰品"
+            ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "description": "服装描述"
+          },
+          "required": [
+            "上装",
+            "下装",
+            "内衣",
+            "袜子",
+            "鞋子",
+            "饰品"
+          ]
+        },
+        "记忆日志": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "description": "时间"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "description": "事件"
+          }
+        }
+      },
+      "required": [
+        "意识状态",
+        "身体锁定",
+        "认知状态",
+        "敏感度",
+        "电量",
+        "实际着装",
+        "记忆日志"
+      ]
+    }
+  },
+  "required": [
+    "世界",
+    "千鹤"
+  ]
+}

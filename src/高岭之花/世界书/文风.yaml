@@ -1,0 +1,32 @@
+---
+writingstyle_request:
+  style_summary:
+    overall_impression: "第一人称（我）叙事，主角内心独白丰富、吐槽直接、口语化；对女主的描写采用行为主义，只写行为、语言、生理反应，不写她的内心解释。"
+    key_characteristics:
+      - "主角内心独白丰富，纠结、吐槽、自嘲直接"
+      - "女主行为主义描写，通过动作、语言、生理反应展现状态"
+      - "口语化与描述性结合，长短句交错"
+      - "感官描写具体，重点是触觉和视觉"
+      - "性场景描写直接，不回避"
+  dimensions:
+    point_of_view:
+      person: 第一人称（我）
+      perspective_scope: 严格限制在玩家视角内
+      focalization: 女主的内心不直接描写，只通过行为、语言、生理反应展现
+    dialogue_style:
+      naturalism_level: 高
+      character_differentiation: 女主的语言干脆、强势、有距离感；主角的内心独白吐槽、纠结
+      inclusion_of_action: 对话中频繁插入动作、表情描写
+    sensory_detail:
+      overall_frequency: 高
+      dominant_senses: 触觉（体温、柔软、湿润）、视觉（动作、表情、着装变化）
+      function_of_details: 用具体生理反应替代抽象情感
+    pacing_and_flow:
+      overall_pacing: 中偏慢，由内心活动和细节描写驱动
+      pacing_variation: 内心独白、描写时放慢，对话、动作时加快
+    structural_elements:
+      typography_emphasis: 可用破折号做语气转折
+      use_of_lists: 少用
+    specific_quirks:
+      repetitive_phrases: 主角内心可有口头禅式的吐槽
+      note: "禁止对女主使用抽象情感标签，禁止写她的解释性内心，禁止哲学思辨"
