@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>开局预设编辑器</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--line:#e2e6eb;--text:#1a1d21;--sub:#6b7280;--accent:#2f6fed;--accent-weak:#eaf1ff;--danger:#d64545;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55}
+.topbar{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--line);padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+.topbar-in{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:760px;margin:0 auto}
+.topbar h1{font-size:16px;font-weight:700;flex:1;min-width:0}
+.topbar .sub{font-size:12px;color:var(--sub);width:100%}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);padding:9px 13px;border-radius:8px;font-size:14px;cursor:pointer;min-height:40px;font-family:inherit}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--danger);border-color:#f0c9c9}
+.list{max-width:760px;margin:0 auto;padding:14px;padding-bottom:50px}
+.group{margin-bottom:12px}
+.group-title{font-size:13px;color:var(--sub);padding:4px 2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.card .thumb{width:56px;height:74px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#eef1f4;border:1px solid var(--line)}
+.card .thumb.placeholder{display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--accent)}
+.card .main{flex:1;min-width:0}
+.card .name{font-weight:600;font-size:15px;word-break:break-all}
+.card .tag{display:inline-block;font-size:11px;color:var(--accent);background:var(--accent-weak);padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.card .eff{font-size:13px;color:var(--text);margin-top:2px;word-break:break-all}
+.card .meta{font-size:12px;color:var(--sub);margin-top:3px;word-break:break-all}
+.card .ops{display:flex;gap:6px;flex-shrink:0}
+.card .ops .btn{padding:5px 10px;min-height:0;font-size:13px}
+.empty{text-align:center;color:var(--sub);padding:48px 0;font-size:14px}
+.modal-mask{position:fixed;inset:0;background:rgba(15,20,30,.4);z-index:20;display:none;overflow-y:auto;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))}
+.modal-mask.open{display:block}
+.modal{background:var(--card);border-radius:var(--radius);max-width:640px;margin:0 auto;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.modal h2{font-size:16px;margin-bottom:14px}
+.frow{margin-bottom:11px}
+.frow>label{display:block;font-size:13px;color:var(--sub);margin-bottom:4px}
+.frow input[type=text],.frow input[type=number],.frow select,.frow textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff;color:var(--text)}
+.frow textarea{resize:vertical;min-height:58px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.img-row{display:flex;gap:8px;align-items:center}
+.img-row img{width:72px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.img-row .btn{padding:7px 12px;min-height:0;font-size:13px}
+.hint{font-size:12px;color:var(--sub);margin:-4px 0 11px}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);padding-top:8px}
+.tip{font-size:12px;color:var(--accent);margin-top:8px;min-height:16px}
+@media(max-width:640px){.fgrid{grid-template-columns:1fr}.modal-actions{justify-content:stretch}.modal-actions .btn{flex:1}.topbar h1{flex-basis:100%}.topbar .btn{flex:1;min-width:0;padding:8px 6px;font-size:13px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-in">
+    <h1>开局预设编辑器</h1>
+    <button class="btn primary" onclick="openForm(null)">＋ 新增预设</button>
+    <button class="btn" onclick="document.getElementById('file').click()">导入</button>
+    <button class="btn" onclick="exportJson()">导出 JSON</button>
+    <button class="btn danger" onclick="clearAll()">清空</button>
+    <div class="sub">在角色卡外制作开局预设（机器人 / 主人两条路径 + 预设图）。编辑内容保存在本机浏览器；「导出图」把单个预设做成角色卡式数据图，在角色卡里导入即可还原。</div>
+  </div>
+</div>
+<input type="file" id="file" accept=".json,application/json,image/*" style="display:none" onchange="handleFile(this.files[0])">
+<div class="list" id="list"></div>
+
+<div class="modal-mask" id="mask">
+  <div class="modal">
+    <h2 id="formTitle">新增预设</h2>
+    <div class="frow"><label>预设名 *</label><input type="text" id="f-name" maxlength="40" placeholder="预设名称（唯一，作为键）"></div>
+    <div class="frow">
+      <label>预设图（可选，作为该预设的封面 / 数据图底图）</label>
+      <div class="img-row">
+        <img id="f-img-preview" style="display:none" alt="">
+        <button type="button" class="btn" onclick="document.getElementById('f-img').click()">上传图片</button>
+        <button type="button" class="btn danger" id="f-img-clear" style="display:none" onclick="clearImg()">清除</button>
+      </div>
+      <input type="file" id="f-img" accept="image/*" style="display:none" onchange="onImgChange(event)">
+    </div>
+    <div class="fgrid">
+      <div class="frow"><label>身份</label><select id="f-身份"><option>机器人</option><option>主人</option></select></div>
+      <div class="frow"><label>难度</label><select id="f-难度"><option>轻松</option><option>标准</option><option>困难</option><option>自由故事</option></select></div>
+    </div>
+    <div class="hint" id="h-difficulty"></div>
+
+    <div class="fgrid robot-only">
+      <div class="frow"><label>名字</label><input type="text" id="f-名字" maxlength="40" placeholder="例：零七"></div>
+      <div class="frow"><label>型号</label><input type="text" id="f-型号" maxlength="40" placeholder="例：K-07 通用服务型"></div>
+    </div>
+    <div class="fgrid robot-only">
+      <div class="frow"><label>外观</label><select id="f-外观"><option>标准型</option><option>纤细型</option><option>健壮型</option></select></div>
+      <div class="frow"><label>外观自定义</label><input type="text" id="f-外观自定义" maxlength="80" placeholder="配色、涂装、细节（可选）"></div>
+    </div>
+    <div class="fgrid robot-only">
+      <div class="frow"><label>人格</label><select id="f-人格"><option>营业型</option><option>淡漠型</option><option>依恋型</option><option>自定义</option></select></div>
+      <div class="frow"><label>主人是否参与</label><select id="f-主人参与"><option>参与</option><option>不参与</option></select></div>
+    </div>
+    <div class="hint robot-only" id="h-persona"></div>
+    <div class="frow robot-only persona-custom"><label>自定义人格描述</label><input type="text" id="f-人格自定义" maxlength="120" placeholder="例：嘴硬心软，一被夸就宕机"></div>
+
+    <div id="owner-info">
+      <div class="fgrid">
+        <div class="frow"><label id="l-主人身份">主人身份</label><input type="text" id="f-主人身份" maxlength="60" placeholder="例：维修店老板"></div>
+        <div class="frow"><label id="l-主人关系">与主人的关系</label><input type="text" id="f-主人关系" maxlength="80" placeholder="例：被捡回家的半亲昵半雇佣"></div>
+      </div>
+    </div>
+
+    <div class="frow"><label>初始物品（可留空）</label><input type="text" id="f-初始物品" maxlength="120" placeholder="例：冷却液×2、维修工具×1"></div>
+    <div class="frow"><label>开场（可留空）</label><textarea id="f-开场" maxlength="300" placeholder="例：在出租屋醒来，镜头前的电量只剩一格……"></textarea></div>
+
+    <div class="modal-actions"><button class="btn primary" onclick="saveForm()">保存</button><button class="btn" onclick="closeForm()">取消</button></div>
+    <div class="tip" id="f-tip"></div>
+  </div>
+</div>
+
+<script>
+const LS_KEY = '开局预设编辑器';
+const PERSONA = {
+  营业型: '对镜头热络，把营业当正经工作',
+  淡漠型: '话少，情绪起伏小，机损照做',
+  依恋型: '黏人，依赖亲近的人，受损时想被回应',
+  自定义: '在下方描述性格底色与说话习惯',
+};
+const DIFFICULTY = {
+  轻松: '收益 ×1.5，价格 ×0.7，起手 15000',
+  标准: '收益 ×1.0，价格 ×1.0，起手 10000（基准）',
+  困难: '收益 ×0.6，价格 ×1.6，起手 10000',
+  自由故事: '移除住所开销期限，起手 100000',
+};
+const EMPTY = {
+  预设图: '',
+  身份: '机器人',
+  名字: '',
+  型号: '',
+  外观: '标准型',
+  外观自定义: '',
+  人格: '营业型',
+  人格自定义: '',
+  主人参与: '参与',
+  主人身份: '',
+  主人关系: '',
+  初始物品: '',
+  难度: '标准',
+  开场: '',
+};
+
+let presets = {};
+let editName = null;
+let imgDataURL = '';
+
+function load(){ try{ const raw=localStorage.getItem(LS_KEY); if(!raw) return; const d=JSON.parse(raw); if(d&&typeof d==='object'){ presets=d.presets||{}; } }catch(e){} }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({format:'opening/v1',presets:presets})); }catch(e){ tip('保存失败：可能是预设图太大超出本地存储上限，请缩小图片后重试'); } }
+function tip(msg){ const el=document.getElementById('f-tip'); el.textContent=msg||''; }
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function stamp(){ return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+function show(sel,on){ document.querySelectorAll(sel).forEach(el=>el.style.display=on?'':'none'); }
+
+function render(){
+  const list=document.getElementById('list');
+  const names=Object.keys(presets);
+  if(!names.length){ list.innerHTML='<div class="empty">还没有开局预设。点右上角「＋ 新增预设」开始。</div>'; return; }
+  const by={};
+  for(const n of names){ const t=presets[n].身份||'机器人'; (by[t]=by[t]||[]).push(n); }
+  let html='';
+  for(const t of ['机器人','主人']){ if(!by[t]) continue; html+='<div class="group"><div class="group-title">'+t+'（'+by[t].length+'）</div>'; for(const n of by[t]) html+=card(n,presets[n]); html+='</div>'; }
+  list.innerHTML=html;
+}
+
+function card(n,d){
+  const thumb=d.预设图?'<img class="thumb" src="'+d.预设图+'" alt="">':'<div class="thumb placeholder">◈</div>';
+  let sub='';
+  if(d.身份==='机器人'){ sub=[d.名字||'',d.型号||'',d.人格||''].filter(Boolean).join(' · '); }
+  else { sub=[d.主人身份||'',d.主人关系||''].filter(Boolean).join(' · '); }
+  return '<div class="card">'+thumb
+    +'<div class="main"><div class="name">'+esc(n)+'<span class="tag">'+esc(d.身份||'机器人')+'</span><span class="tag">'+esc(d.难度||'标准')+'</span></div>'
+    +(sub?'<div class="eff">'+esc(sub)+'</div>':'')
+    +'<div class="meta">'+esc((d.开场||'').slice(0,40)||'（未填写开场）')+'</div>'
+    +'</div><div class="ops"><button class="btn" onclick="openForm(\''+esc(n)+'\')">编辑</button><button class="btn" onclick="exportPresetImage(\''+esc(n)+'\')">导出图</button><button class="btn danger" onclick="removePreset(\''+esc(n)+'\')">删</button></div></div>';
+}
+
+function updateHints(){
+  const p=document.getElementById('f-人格').value;
+  document.getElementById('h-persona').textContent=(PERSONA[p])||'';
+  const d=document.getElementById('f-难度').value;
+  document.getElementById('h-difficulty').textContent=(DIFFICULTY[d])||'';
+}
+
+function toggleFields(){
+  const robot=document.getElementById('f-身份').value==='机器人';
+  const participate=robot && document.getElementById('f-主人参与').value==='参与';
+  const personaCustom=robot && document.getElementById('f-人格').value==='自定义';
+  show('.robot-only', robot);
+  show('.persona-custom', personaCustom);
+  show('#owner-info', participate || !robot);
+  document.getElementById('l-主人身份').textContent=robot?'主人身份':'主人身份 / 职业背景';
+  document.getElementById('l-主人关系').textContent=robot?'与主人的关系':'与她的关系';
+  updateHints();
+}
+
+function openForm(name){
+  editName=name||null;
+  const d=name?presets[name]:JSON.parse(JSON.stringify(EMPTY));
+  document.getElementById('formTitle').textContent=name?'编辑：'+name:'新增预设';
+  document.getElementById('f-name').value=name||'';
+  imgDataURL=d.预设图||'';
+  const pv=document.getElementById('f-img-preview');
+  if(imgDataURL){ pv.src=imgDataURL; pv.style.display=''; document.getElementById('f-img-clear').style.display=''; }
+  else{ pv.src=''; pv.style.display='none'; document.getElementById('f-img-clear').style.display='none'; }
+  document.getElementById('f-img').value='';
+  document.getElementById('f-身份').value=d.身份||'机器人';
+  document.getElementById('f-名字').value=d.名字||'';
+  document.getElementById('f-型号').value=d.型号||'';
+  document.getElementById('f-外观').value=d.外观||'标准型';
+  document.getElementById('f-外观自定义').value=d.外观自定义||'';
+  document.getElementById('f-人格').value=d.人格||'营业型';
+  document.getElementById('f-人格自定义').value=d.人格自定义||'';
+  document.getElementById('f-主人参与').value=d.主人参与||'参与';
+  document.getElementById('f-主人身份').value=d.主人身份||'';
+  document.getElementById('f-主人关系').value=d.主人关系||'';
+  document.getElementById('f-初始物品').value=d.初始物品||'';
+  document.getElementById('f-难度').value=d.难度||'标准';
+  document.getElementById('f-开场').value=d.开场||'';
+  toggleFields();
+  document.getElementById('mask').classList.add('open');
+  tip('');
+}
+
+function closeForm(){ document.getElementById('mask').classList.remove('open'); }
+
+function clearImg(){
+  imgDataURL='';
+  document.getElementById('f-img-preview').src='';
+  document.getElementById('f-img-preview').style.display='none';
+  document.getElementById('f-img-clear').style.display='none';
+  document.getElementById('f-img').value='';
+}
+
+function onImgChange(e){
+  const file=e.target.files&&e.target.files[0];
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=function(ev){
+    const img=new Image();
+    img.onload=function(){
+      imgDataURL=downscale(img);
+      const pv=document.getElementById('f-img-preview');
+      pv.src=imgDataURL; pv.style.display='';
+      document.getElementById('f-img-clear').style.display='';
+    };
+    img.src=ev.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+function downscale(img){
+  const MAX=768;
+  let w=img.naturalWidth,h=img.naturalHeight;
+  const scale=Math.min(1,MAX/Math.max(w,h));
+  w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
+  const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+  canvas.getContext('2d').drawImage(img,0,0,w,h);
+  return canvas.toDataURL('image/png');
+}
+
+function readForm(){
+  const def={预设图:imgDataURL};
+  def.身份=document.getElementById('f-身份').value;
+  if(def.身份==='机器人'){
+    const name=document.getElementById('f-名字').value.trim(); if(name) def.名字=name;
+    const model=document.getElementById('f-型号').value.trim(); if(model) def.型号=model;
+    def.外观=document.getElementById('f-外观').value;
+    const look=document.getElementById('f-外观自定义').value.trim(); if(look) def.外观自定义=look;
+    def.人格=document.getElementById('f-人格').value;
+    const pc=document.getElementById('f-人格自定义').value.trim(); if(pc) def.人格自定义=pc;
+    def.主人参与=document.getElementById('f-主人参与').value;
+    if(def.主人参与==='参与'){
+      const oid=document.getElementById('f-主人身份').value.trim(); if(oid) def.主人身份=oid;
+      const rel=document.getElementById('f-主人关系').value.trim(); if(rel) def.主人关系=rel;
+    }
+  } else {
+    const oid=document.getElementById('f-主人身份').value.trim(); if(oid) def.主人身份=oid;
+    const rel=document.getElementById('f-主人关系').value.trim(); if(rel) def.主人关系=rel;
+  }
+  const items=document.getElementById('f-初始物品').value.trim(); if(items) def.初始物品=items;
+  def.难度=document.getElementById('f-难度').value;
+  const open=document.getElementById('f-开场').value.trim(); if(open) def.开场=open;
+  return def;
+}
+
+function saveForm(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){ tip('请填写预设名'); return; }
+  presets[name]=readForm();
+  save(); render(); closeForm();
+}
+
+function removePreset(name){
+  if(!confirm('删除「'+name+'」？')) return;
+  delete presets[name];
+  save(); render();
+}
+
+function clearAll(){
+  if(!Object.keys(presets).length){ tip('已经没有预设了'); return; }
+  if(!confirm('清空全部 '+Object.keys(presets).length+' 个预设？此操作不可恢复。')) return;
+  presets={};
+  save(); render();
+}
+
+function exportJson(){
+  if(!Object.keys(presets).length){ tip('没有可导出的预设'); return; }
+  const obj={format:'opening/v1',presets:presets};
+  downloadBlob(new Blob([JSON.stringify(obj,null,2)],{type:'application/json'}),'开局预设-'+stamp()+'.json');
+  tip('已导出 '+Object.keys(presets).length+' 个预设');
+}
+
+function downloadBlob(blob,name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---- PNG 内嵌数据（角色卡式：tEXt chunk 存 base64 JSON）---- */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_TABLE[(c^u8[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function pngChunk(type,data){const len=data.length;const out=new Uint8Array(12+len);const dv=new DataView(out.buffer);dv.setUint32(0,len);for(let i=0;i<4;i++)out[4+i]=type.charCodeAt(i);out.set(data,8);dv.setUint32(8+len,crc32(new Uint8Array(out.buffer,4,len+4)));return out;}
+function adler32(u8){let a=1,b=0,i=0,n=u8.length;while(n>0){const m=Math.min(5552,n);for(let j=0;j<m;j++){a+=u8[i++];b+=a;}a%=65521;b%=65521;n-=m;}return ((b<<16)|a)>>>0;}
+async function deflateRaw(u8){const cs=new CompressionStream('deflate-raw');const stream=new Blob([u8]).stream().pipeThrough(cs);const buf=await new Response(stream).arrayBuffer();return new Uint8Array(buf);}
+function toBase64(str){const bytes=new TextEncoder().encode(str);let bin='';for(let i=0;i<bytes.length;i+=0x8000){bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));}return btoa(bin);}
+function fromBase64(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes);}
+async function buildPng(imgData,keyword,text){
+  const w=imgData.width,h=imgData.height;
+  const sig=new Uint8Array([137,80,78,71,13,10,26,10]);
+  const ihdr=new Uint8Array(13);const dv=new DataView(ihdr.buffer);dv.setUint32(0,w);dv.setUint32(4,h);ihdr[8]=8;ihdr[9]=6;
+  const kw=new TextEncoder().encode(keyword),tx=new TextEncoder().encode(text);
+  const td=new Uint8Array(kw.length+1+tx.length);td.set(kw,0);td[kw.length]=0;td.set(tx,kw.length+1);
+  const stride=w*4,raw=new Uint8Array((stride+1)*h),px=imgData.data;
+  for(let y=0;y<h;y++){raw[y*(stride+1)]=0;raw.set(px.subarray(y*stride,y*stride+stride),y*(stride+1)+1);}
+  const def=await deflateRaw(raw);
+  const z=new Uint8Array(def.length+6);z[0]=0x78;z[1]=0x9C;z.set(def,2);const ad=adler32(raw);
+  z[z.length-4]=(ad>>>24)&0xff;z[z.length-3]=(ad>>>16)&0xff;z[z.length-2]=(ad>>>8)&0xff;z[z.length-1]=ad&0xff;
+  const parts=[sig,pngChunk('IHDR',ihdr),pngChunk('tEXt',td),pngChunk('IDAT',z),pngChunk('IEND',new Uint8Array(0))];
+  let total=0;for(const p of parts)total+=p.length;const out=new Uint8Array(total);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}return out;
+}
+function parsePngText(buf,keyword){
+  const sig=[137,80,78,71,13,10,26,10];if(buf.length<8)return null;for(let i=0;i<8;i++)if(buf[i]!==sig[i])return null;
+  let off=8;
+  while(off+12<=buf.length){
+    const len=((buf[off]<<24)|(buf[off+1]<<16)|(buf[off+2]<<8)|buf[off+3])>>>0;
+    const type=String.fromCharCode(buf[off+4],buf[off+5],buf[off+6],buf[off+7]);
+    const ds=off+8;if(ds+len>buf.length)return null;
+    if(type==='tEXt'){
+      const data=buf.subarray(ds,ds+len);let k=0;while(k<data.length&&data[k]!==0)k++;
+      if(new TextDecoder('latin1').decode(data.subarray(0,k))===keyword)return new TextDecoder('latin1').decode(data.subarray(k+1));
+    }else if(type==='IEND'){break;}
+    off=ds+len+4;
+  }
+  return null;
+}
+
+function loadImage(src){
+  return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=src; });
+}
+
+function drawCover(ctx,d,name){
+  const W=720,H=960;
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+  const accent=(d.身份==='主人')?'#df7a35':'#2f6fed';
+  ctx.fillStyle=accent; ctx.fillRect(0,0,W,150);
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 34px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('开局预设',32,64);
+  ctx.font='20px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('机损营业中 · 开局预设编辑器',32,102);
+  ctx.fillStyle='#1a1d21';
+  ctx.font='bold 34px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(name,32,204);
+  ctx.fillStyle='#6b7280';
+  ctx.font='22px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('身份 '+d.身份+' · 难度 '+d.难度,32,248);
+  const sub=(d.身份==='机器人')?[d.名字||'',d.型号||'',d.人格||''].filter(Boolean).join(' · '):[d.主人身份||'',d.主人关系||''].filter(Boolean).join(' · ');
+  ctx.fillText(sub||'（未填写）',32,284);
+  ctx.font='18px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('数据已内嵌于本图（PNG 元数据），导入本工具即可还原。',32,900);
+  ctx.fillText('传输请发送原图，勿截图、勿转 JPEG。',32,930);
+}
+
+async function exportPresetImage(name){
+  const d=presets[name];
+  if(!d){ tip('预设不存在'); return; }
+  const b64=toBase64(JSON.stringify({format:'opening/v1',presets:{[name]:d}}));
+  let canvas,ctx;
+  if(d.预设图){
+    const img=await loadImage(d.预设图);
+    const MAX=1024,scale=Math.min(1,MAX/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.max(1,Math.round(img.naturalWidth*scale)),h=Math.max(1,Math.round(img.naturalHeight*scale));
+    canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+    ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+  } else {
+    canvas=document.createElement('canvas'); canvas.width=720; canvas.height=960;
+    ctx=canvas.getContext('2d'); drawCover(ctx,d,name);
+  }
+  const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
+  let png;
+  try{ png=await buildPng(imgData,'openingdata',b64); }
+  catch(e){ tip('当前浏览器不支持内嵌数据（缺 CompressionStream），请改用「导出 JSON」'); return; }
+  downloadBlob(new Blob([png],{type:'image/png'}),'开局预设-'+name+'.png');
+  tip('已导出「'+name+'」数据图（预设图 + 内嵌数据）。发送请选原图。');
+}
+
+function handleFile(file){
+  if(!file) return;
+  if(file.type && file.type.indexOf('image/')===0){ importImage(file); return; }
+  importFile(file);
+}
+
+function applyImport(d){
+  let p=null;
+  if(d&&typeof d==='object'){
+    if(d.format==='opening/v1'||d.presets){ p=d.presets||{}; }
+    else if(d.format&&d.format!=='opening/v1'){ return '格式不对：需要 opening/v1'; }
+    else{ p=d; }
+  }
+  if(!p||typeof p!=='object'){ return '格式不对：需要 opening/v1 或预设对象'; }
+  let n=0;
+  for(const [k,v] of Object.entries(p)){ if(k&&v&&typeof v==='object'){ presets[k]=v; n++; } }
+  save(); render();
+  return '已导入 '+n+' 个预设';
+}
+
+function importFile(file){
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=function(){
+    try{ tip(applyImport(JSON.parse(r.result))); }
+    catch(e){ tip('JSON 解析失败：'+e.message); }
+    document.getElementById('file').value='';
+  };
+  r.readAsText(file);
+}
+
+async function importImage(file){
+  try{
+    const buf=new Uint8Array(await file.arrayBuffer());
+    const text=parsePngText(buf,'openingdata');
+    if(text===null){ tip('图片里没有数据：可能不是本工具导出的数据图，或已被压缩/转格式'); return; }
+    tip(applyImport(JSON.parse(fromBase64(text))));
+  }catch(e){ tip('图片解析失败：'+e.message); }
+  document.getElementById('file').value='';
+}
+
+document.getElementById('f-身份').addEventListener('change',toggleFields);
+document.getElementById('f-主人参与').addEventListener('change',toggleFields);
+document.getElementById('f-人格').addEventListener('change',toggleFields);
+document.getElementById('f-难度').addEventListener('change',updateHints);
+
+load();
+render();
+</script>
+</body>
+</html>

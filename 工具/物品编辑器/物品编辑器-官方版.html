@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>物品编辑器 · 官方版</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--line:#e2e6eb;--text:#1a1d21;--sub:#6b7280;--accent:#b45309;--accent-weak:#fef3c7;--danger:#d64545;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.55}
+.topbar{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--line);padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top))}
+.topbar-in{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:760px;margin:0 auto}
+.topbar h1{font-size:16px;font-weight:700;flex:1;min-width:0}
+.topbar .sub{font-size:12px;color:var(--sub);width:100%}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);padding:9px 13px;border-radius:8px;font-size:14px;cursor:pointer;min-height:40px;font-family:inherit}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--danger);border-color:#f0c9c9}
+.list{max-width:760px;margin:0 auto;padding:14px;padding-bottom:50px}
+.group{margin-bottom:12px}
+.group-title{font-size:13px;color:var(--sub);padding:4px 2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.card .main{flex:1;min-width:0}
+.card .name{font-weight:600;font-size:15px;word-break:break-all}
+.card .tag{display:inline-block;font-size:11px;color:var(--accent);background:var(--accent-weak);padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.card .eff{font-size:13px;color:var(--text);margin-top:2px;word-break:break-all}
+.card .meta{font-size:12px;color:var(--sub);margin-top:3px;word-break:break-all}
+.card .ops{display:flex;gap:6px;flex-shrink:0}
+.card .ops .btn{padding:5px 10px;min-height:0;font-size:13px}
+.empty{text-align:center;color:var(--sub);padding:48px 0;font-size:14px}
+.modal-mask{position:fixed;inset:0;background:rgba(15,20,30,.4);z-index:20;display:none;overflow-y:auto;padding:12px;padding-top:calc(12px + env(safe-area-inset-top))}
+.modal-mask.open{display:block}
+.modal{background:var(--card);border-radius:var(--radius);max-width:640px;margin:0 auto;padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.modal h2{font-size:16px;margin-bottom:14px}
+.frow{margin-bottom:11px}
+.frow>label{display:block;font-size:13px;color:var(--sub);margin-bottom:4px}
+.frow input[type=text],.frow input[type=number],.frow select,.frow textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:15px;font-family:inherit;background:#fff;color:var(--text)}
+.frow textarea{resize:vertical;min-height:58px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.fchecks{display:flex;gap:16px;flex-wrap:wrap}
+.fcheck{display:flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
+.fcheck input{width:18px;height:18px;accent-color:var(--accent)}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;position:sticky;bottom:0;background:var(--card);padding-top:8px}
+.tip{font-size:12px;color:var(--accent);margin-top:8px;min-height:16px}
+@media(max-width:640px){.fgrid{grid-template-columns:1fr}.modal-actions{justify-content:stretch}.modal-actions .btn{flex:1}.topbar h1{flex-basis:100%}.topbar .btn{flex:1;min-width:0;padding:8px 6px;font-size:13px}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-in">
+    <h1>物品编辑器 · 官方版</h1>
+    <button class="btn primary" onclick="openForm(null)">＋ 新增物品</button>
+    <button class="btn" onclick="document.getElementById('file').click()">导入</button>
+    <button class="btn" onclick="exportJson()">导出文件</button>
+    <button class="btn" onclick="exportImage()">导出图片</button>
+    <button class="btn danger" onclick="clearAll()">清空</button>
+    <div class="sub">编辑官方候选物品（含彩蛋/图标字段）。导出 JSON 后交给官方，筛选后缝合进版本更新。</div>
+  </div>
+</div>
+<input type="file" id="file" accept=".json,application/json,image/*" style="display:none" onchange="handleFile(this.files[0])">
+<div class="list" id="list"></div>
+
+<div class="modal-mask" id="mask">
+  <div class="modal">
+    <h2 id="formTitle">新增物品</h2>
+    <div class="frow"><label>名称 *</label><input type="text" id="f-name" maxlength="40" placeholder="物品名称（唯一，作为键）"></div>
+    <div class="fgrid">
+      <div class="frow"><label>类型</label><select id="f-type"></select></div>
+      <div class="frow"><label>价格（信用点）</label><input type="number" id="f-price" min="0" placeholder="采购价"></div>
+    </div>
+    <div class="frow"><label>效果 *</label><input type="text" id="f-effect" maxlength="80" placeholder="物品效果，如：电量上限+10"></div>
+    <div class="frow"><label>描述</label><textarea id="f-desc" maxlength="200" placeholder="外观 / 来历 / 说明（可选）"></textarea></div>
+    <div class="fgrid">
+      <div class="frow"><label>厂家</label><input type="text" id="f-maker" maxlength="40" placeholder="镜湖重工"></div>
+      <div class="frow part-only"><label>型号</label><input type="text" id="f-model" maxlength="40" placeholder="如 HD-BAT-3000"></div>
+    </div>
+    <div class="frow part-only"><label>部位</label><input type="text" id="f-part" list="part-slots" placeholder="选择或输入部位"></div>
+    <datalist id="part-slots"></datalist>
+    <div class="frow part-only"><label>更换方式</label><select id="f-self"><option value="1">可自行更换（耗电）</option><option value="0">需维修店</option></select></div>
+    <div class="fgrid">
+      <div class="frow part-only self-only"><label>更换耗电</label><input type="number" id="f-cost" min="0" placeholder="自换消耗电量"></div>
+      <div class="frow part-only"><label>更换耗时（小时）</label><input type="number" id="f-hours" min="0" step="0.1" placeholder="0 = 无需计时"></div>
+    </div>
+    <div class="frow wear-only"><label>穿着位置</label><select id="f-wear"></select></div>
+    <div class="frow"><label>购买来源</label><div class="fchecks"><label class="fcheck"><input type="checkbox" id="f-src-online" checked> 网购（亚马送）</label><label class="fcheck"><input type="checkbox" id="f-src-repair"> 维修店</label></div></div>
+    <div class="frow repair-only"><label>维修店价</label><input type="number" id="f-repairprice" min="0" placeholder="缺省 = 价格"></div>
+    <div class="frow service-only"><label>订阅周期（天）</label><input type="number" id="f-cycle" min="0" placeholder="0 = 一次性消费；&gt;0 = 订阅型"></div>
+    <div class="frow official-only"><label class="fcheck"><input type="checkbox" id="f-easter"> 彩蛋（隐藏商品，不进正常列表）</label></div>
+    <div class="frow official-only"><label>图标</label><input type="text" id="f-icon" maxlength="20" placeholder="emoji / 图库 key（预留）"></div>
+    <div class="modal-actions"><button class="btn primary" onclick="saveForm()">保存</button><button class="btn" onclick="closeForm()">取消</button></div>
+    <div class="tip" id="f-tip"></div>
+  </div>
+</div>
+
+<script>
+const VERSION = 'official';
+const LS_KEY = '物品编辑器·官方版';
+const TYPES = ['耗材','部件','服装','设备','服务','其他','房产'];
+const PART_SLOTS = ['电力系统','散热系统','体液系统','左大腿','右大腿','脊椎','电子脑','处理器','定制','传感系统','记忆模块','视觉模块','语言模块','听觉模块','逻辑模块','人格模块','表情模块','传动系统','机械骨骼','皮肤外壳','生殖模块'];
+const WEAR_SLOTS = ['头部','内衣','上身','下装','外套','袜子','足部','涂层'];
+const EMPTY = {类型:'耗材',效果:'',价格:'',描述:'',型号:'',厂家:'镜湖重工',部位:'',可否自换:true,更换耗电:0,更换耗时:0,穿着位置:'',图标:'',购买来源:['网购'],维修店价:'',订阅周期:0,彩蛋:false};
+
+let items = {};
+let disabled = [];
+let editName = null;
+
+function load(){ try{ const raw=localStorage.getItem(LS_KEY); if(!raw) return; const d=JSON.parse(raw); if(d&&typeof d==='object'){ items=d.player||{}; disabled=Array.isArray(d.disabled)?d.disabled:[]; } }catch(e){} }
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify({player:items,disabled:disabled})); }catch(e){} }
+function tip(msg){ const el=document.getElementById('f-tip'); el.textContent=msg||''; }
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function render(){
+  const list=document.getElementById('list');
+  const names=Object.keys(items);
+  if(!names.length){ list.innerHTML='<div class="empty">还没有物品。点右上角「＋ 新增物品」开始。</div>'; return; }
+  const by={};
+  for(const n of names){ const t=items[n].类型||'其他'; (by[t]=by[t]||[]).push(n); }
+  let html='';
+  for(const t of TYPES){ if(!by[t]) continue; html+='<div class="group"><div class="group-title">'+t+'（'+by[t].length+'）</div>'; for(const n of by[t]) html+=card(n,items[n]); html+='</div>'; }
+  list.innerHTML=html;
+}
+
+function card(n,d){
+  const t=d.类型||'其他';
+  let tag=t;
+  if(t==='部件'&&d.部位) tag+=' · '+d.部位;
+  else if(t==='服装'&&d.穿着位置) tag+=' · '+d.穿着位置;
+  let meta='';
+  if(d.价格!=null&&d.价格!=='') meta+='价格 '+d.价格;
+  if(d.维修店价!=null&&d.维修店价!=='') meta+=' · 维修店 '+d.维修店价;
+  if(t==='部件') meta+=(meta?' · ':'')+(d.可否自换===false?'需维修店':'可自换');
+  if(d.订阅周期>0) meta+=(meta?' · ':'')+'订阅 '+d.订阅周期+' 天';
+  if(d.彩蛋) meta+=(meta?' · ':'')+'彩蛋';
+  return '<div class="card"><div class="main"><div class="name">'+esc(n)+'<span class="tag">'+esc(tag)+'</span></div>'
+    +'<div class="eff">'+esc(d.效果||'')+'</div>'
+    +(meta?'<div class="meta">'+esc(meta)+'</div>':'')
+    +'</div><div class="ops"><button class="btn" onclick="openForm(\''+esc(n)+'\')">编辑</button><button class="btn danger" onclick="removeItem(\''+esc(n)+'\')">删</button></div></div>';
+}
+
+function fillOptions(){
+  const sel=document.getElementById('f-type');
+  sel.innerHTML=TYPES.map(t=>'<option value="'+t+'">'+t+'</option>').join('');
+  document.getElementById('part-slots').innerHTML=PART_SLOTS.map(p=>'<option value="'+p+'"></option>').join('');
+  document.getElementById('f-wear').innerHTML=WEAR_SLOTS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+}
+
+function openForm(name){
+  editName=name||null;
+  const d=name?items[name]:JSON.parse(JSON.stringify(EMPTY));
+  document.getElementById('formTitle').textContent=name?'编辑：'+name:'新增物品';
+  document.getElementById('f-name').value=name||'';
+  document.getElementById('f-type').value=d.类型||'耗材';
+  document.getElementById('f-price').value=(d.价格??'');
+  document.getElementById('f-effect').value=d.效果||'';
+  document.getElementById('f-desc').value=d.描述||'';
+  document.getElementById('f-maker').value=d.厂家||'镜湖重工';
+  document.getElementById('f-model').value=d.型号||'';
+  document.getElementById('f-part').value=d.部位||'';
+  document.getElementById('f-self').value=(d.可否自换===false)?'0':'1';
+  document.getElementById('f-cost').value=(d.更换耗电??0);
+  document.getElementById('f-hours').value=(d.更换耗时??0);
+  document.getElementById('f-wear').value=d.穿着位置||'上身';
+  document.getElementById('f-repairprice').value=(d.维修店价??'');
+  document.getElementById('f-cycle').value=(d.订阅周期??0);
+  document.getElementById('f-easter').checked=!!d.彩蛋;
+  document.getElementById('f-icon').value=d.图标||'';
+  const src=d.购买来源||['网购'];
+  document.getElementById('f-src-online').checked=src.includes('网购');
+  document.getElementById('f-src-repair').checked=src.includes('维修店');
+  toggleFields();
+  document.getElementById('mask').classList.add('open');
+  tip('');
+}
+
+function closeForm(){ document.getElementById('mask').classList.remove('open'); }
+
+function toggleFields(){
+  const t=document.getElementById('f-type').value;
+  const self=document.getElementById('f-self').value==='1';
+  const repair=document.getElementById('f-src-repair').checked;
+  const show=(sel,on)=>{ document.querySelectorAll(sel).forEach(el=>el.style.display=on?'':'none'); };
+  show('.part-only', t==='部件');
+  show('.self-only', t==='部件'&&self);
+  show('.wear-only', t==='服装');
+  show('.service-only', t==='服务');
+  show('.repair-only', repair);
+  show('.official-only', VERSION==='official');
+}
+
+function readForm(){
+  const src=[];
+  if(document.getElementById('f-src-online').checked) src.push('网购');
+  if(document.getElementById('f-src-repair').checked) src.push('维修店');
+  const num=v=>{ const x=document.getElementById(v).value; return (x===''||x==null)?undefined:Number(x); };
+  const def={类型:document.getElementById('f-type').value};
+  const effect=document.getElementById('f-effect').value.trim();
+  if(effect) def.效果=effect;
+  const price=num('f-price'); if(price!=null) def.价格=price;
+  const desc=document.getElementById('f-desc').value.trim(); if(desc) def.描述=desc;
+  const maker=document.getElementById('f-maker').value.trim(); if(maker) def.厂家=maker;
+  if(def.类型==='部件'){
+    const model=document.getElementById('f-model').value.trim(); if(model) def.型号=model;
+    const part=document.getElementById('f-part').value.trim(); if(part) def.部位=part;
+    def.可否自换=document.getElementById('f-self').value==='1';
+    if(def.可否自换){ const c=num('f-cost'); def.更换耗电=(c==null)?0:c; }
+    const h=num('f-hours'); def.更换耗时=(h==null)?0:h;
+  }
+  if(def.类型==='服装'){ def.穿着位置=document.getElementById('f-wear').value; }
+  if(src.length) def.购买来源=src;
+  const rp=num('f-repairprice'); if(rp!=null) def.维修店价=rp;
+  if(def.类型==='服务'){ const cy=num('f-cycle'); if(cy!=null&&cy>0) def.订阅周期=cy; }
+  if(VERSION==='official'){
+    if(document.getElementById('f-easter').checked) def.彩蛋=true;
+    const icon=document.getElementById('f-icon').value.trim(); if(icon) def.图标=icon;
+  }
+  return def;
+}
+
+function saveForm(){
+  const name=document.getElementById('f-name').value.trim();
+  const effect=document.getElementById('f-effect').value.trim();
+  if(!name){ tip('请填写物品名称'); return; }
+  if(!effect){ tip('请填写效果'); return; }
+  items[name]=readForm();
+  save(); render(); closeForm();
+}
+
+function removeItem(name){
+  if(!confirm('删除「'+name+'」？')) return;
+  delete items[name];
+  save(); render();
+}
+
+function clearAll(){
+  if(!Object.keys(items).length){ tip('已经没有物品了'); return; }
+  if(!confirm('清空全部 '+Object.keys(items).length+' 件物品？此操作不可恢复。')) return;
+  items={}; disabled=[];
+  save(); render();
+}
+
+function exportJson(){
+  if(!Object.keys(items).length){ tip('没有可导出的物品'); return; }
+  const obj={format:'items/v1',player:items,disabled:disabled};
+  if(VERSION==='official') obj.origin='official-draft';
+  const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const stamp=new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.download=(VERSION==='official'?'物品-官方版-':'物品-玩家版-')+stamp+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  tip('已导出 '+Object.keys(items).length+' 件物品');
+}
+
+function filename(suffix){ const stamp=new Date().toISOString().slice(0,10).replace(/-/g,''); return (VERSION==='official'?'物品-官方版-':'物品-玩家版-')+stamp+suffix; }
+
+function downloadBlob(blob, name){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
+/* ---- PNG 内嵌数据（角色卡式：tEXt chunk 存 base64 JSON）---- */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC_TABLE[(c^u8[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function pngChunk(type,data){const len=data.length;const out=new Uint8Array(12+len);const dv=new DataView(out.buffer);dv.setUint32(0,len);for(let i=0;i<4;i++)out[4+i]=type.charCodeAt(i);out.set(data,8);dv.setUint32(8+len,crc32(new Uint8Array(out.buffer,4,len+4)));return out;}
+function adler32(u8){let a=1,b=0,i=0,n=u8.length;while(n>0){const m=Math.min(5552,n);for(let j=0;j<m;j++){a+=u8[i++];b+=a;}a%=65521;b%=65521;n-=m;}return ((b<<16)|a)>>>0;}
+async function deflateRaw(u8){const cs=new CompressionStream('deflate-raw');const stream=new Blob([u8]).stream().pipeThrough(cs);const buf=await new Response(stream).arrayBuffer();return new Uint8Array(buf);}
+function toBase64(str){const bytes=new TextEncoder().encode(str);let bin='';for(let i=0;i<bytes.length;i+=0x8000){bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));}return btoa(bin);}
+function fromBase64(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes);}
+async function buildPng(imgData,keyword,text){
+  const w=imgData.width,h=imgData.height;
+  const sig=new Uint8Array([137,80,78,71,13,10,26,10]);
+  const ihdr=new Uint8Array(13);const dv=new DataView(ihdr.buffer);dv.setUint32(0,w);dv.setUint32(4,h);ihdr[8]=8;ihdr[9]=6;
+  const kw=new TextEncoder().encode(keyword),tx=new TextEncoder().encode(text);
+  const td=new Uint8Array(kw.length+1+tx.length);td.set(kw,0);td[kw.length]=0;td.set(tx,kw.length+1);
+  const stride=w*4,raw=new Uint8Array((stride+1)*h),px=imgData.data;
+  for(let y=0;y<h;y++){raw[y*(stride+1)]=0;raw.set(px.subarray(y*stride,y*stride+stride),y*(stride+1)+1);}
+  const def=await deflateRaw(raw);
+  const z=new Uint8Array(def.length+6);z[0]=0x78;z[1]=0x9C;z.set(def,2);const ad=adler32(raw);
+  z[z.length-4]=(ad>>>24)&0xff;z[z.length-3]=(ad>>>16)&0xff;z[z.length-2]=(ad>>>8)&0xff;z[z.length-1]=ad&0xff;
+  const parts=[sig,pngChunk('IHDR',ihdr),pngChunk('tEXt',td),pngChunk('IDAT',z),pngChunk('IEND',new Uint8Array(0))];
+  let total=0;for(const p of parts)total+=p.length;const out=new Uint8Array(total);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}return out;
+}
+function parsePngText(buf,keyword){
+  const sig=[137,80,78,71,13,10,26,10];if(buf.length<8)return null;for(let i=0;i<8;i++)if(buf[i]!==sig[i])return null;
+  let off=8;
+  while(off+12<=buf.length){
+    const len=((buf[off]<<24)|(buf[off+1]<<16)|(buf[off+2]<<8)|buf[off+3])>>>0;
+    const type=String.fromCharCode(buf[off+4],buf[off+5],buf[off+6],buf[off+7]);
+    const ds=off+8;if(ds+len>buf.length)return null;
+    if(type==='tEXt'){
+      const data=buf.subarray(ds,ds+len);let k=0;while(k<data.length&&data[k]!==0)k++;
+      if(new TextDecoder('latin1').decode(data.subarray(0,k))===keyword)return new TextDecoder('latin1').decode(data.subarray(k+1));
+    }else if(type==='IEND'){break;}
+    off=ds+len+4;
+  }
+  return null;
+}
+
+async function exportImage(){
+  if(!Object.keys(items).length){ tip('没有可导出的物品'); return; }
+  const obj={format:'items/v1',player:items,disabled:disabled};
+  if(VERSION==='official') obj.origin='official-draft';
+  const b64=toBase64(JSON.stringify(obj));
+  const W=720,H=540;
+  const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=(VERSION==='official')?'#b45309':'#2f6fed';
+  ctx.fillRect(0,0,W,120);
+  ctx.fillStyle='#ffffff';
+  ctx.font='bold 34px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText((VERSION==='official'?'物品数据 · 官方版':'物品数据 · 玩家版'),32,62);
+  ctx.font='20px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('机损营业中 · 物品编辑器',32,100);
+  ctx.fillStyle='#1a1d21';
+  ctx.font='bold 30px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(Object.keys(items).length+' 件物品',32,190);
+  ctx.fillStyle='#6b7280';
+  ctx.font='18px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+  const stamp=new Date().toISOString().replace('T',' ').slice(0,16);
+  ctx.fillText('导出时间 '+stamp,32,232);
+  ctx.fillText('数据已内嵌于本图（PNG 元数据），导入本工具即可还原。',32,264);
+  ctx.fillText('传输请发送原图，勿截图、勿转 JPEG。',32,296);
+  const imgData=ctx.getImageData(0,0,W,H);
+  let png;
+  try{ png=await buildPng(imgData,'itemdata',b64); }
+  catch(e){ tip('当前浏览器不支持内嵌数据（缺 CompressionStream），请改用「导出文件」'); return; }
+  const blob=new Blob([png],{type:'image/png'});
+  const name=filename('.png');
+  const file=new File([blob],name,{type:'image/png'});
+  if(navigator.share&&navigator.canShare){
+    try{ if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).then(()=>tip('已分享数据图，请选「原图」发送')).catch(()=>downloadBlob(blob,name));return;} }catch(e){}
+  }
+  downloadBlob(blob,name);
+  tip('已导出数据图（封面 + 内嵌数据）。发送务必选原图。');
+}
+
+function handleFile(file){
+  if(!file) return;
+  if(file.type && file.type.indexOf('image/')===0){ importImage(file); return; }
+  importFile(file);
+}
+
+function applyImport(d){
+  let p=null, ds=[];
+  if(d&&typeof d==='object'){
+    if(d.format==='items/v1'||d.player){ p=d.player||{}; if(Array.isArray(d.disabled)) ds=d.disabled; }
+    else if(d.format&&d.format!=='items/v1'){ return '格式不对：需要 items/v1'; }
+    else { p=d; }
+  }
+  if(!p||typeof p!=='object'){ return '格式不对：需要 items/v1 或物品定义对象'; }
+  let n=0;
+  for(const [k,v] of Object.entries(p)){ if(k&&v&&typeof v==='object'){ items[k]=v; n++; } }
+  if(ds.length) disabled=ds;
+  save(); render();
+  return '已导入 '+n+' 件物品';
+}
+
+function importFile(file){
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=function(){
+    try{ tip(applyImport(JSON.parse(r.result))); }
+    catch(e){ tip('JSON 解析失败：'+e.message); }
+    document.getElementById('file').value='';
+  };
+  r.readAsText(file);
+}
+
+async function importImage(file){
+  try{
+    const buf=new Uint8Array(await file.arrayBuffer());
+    const text=parsePngText(buf,'itemdata');
+    if(text===null){ tip('图片里没有数据：可能不是本工具导出的数据图，或已被压缩/转格式'); return; }
+    tip(applyImport(JSON.parse(fromBase64(text))));
+  }catch(e){ tip('图片解析失败：'+e.message); }
+  document.getElementById('file').value='';
+}
+
+document.getElementById('f-type').addEventListener('change',toggleFields);
+document.getElementById('f-self').addEventListener('change',toggleFields);
+document.getElementById('f-src-repair').addEventListener('change',toggleFields);
+
+fillOptions();
+load();
+render();
+</script>
+</body>
+</html>
