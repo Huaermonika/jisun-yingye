@@ -11,9 +11,12 @@ pnpm-debug.log*
 
 auto-imports.d.ts
 components.d.ts
+<<<<<<< HEAD
 
 # 本地 Claude Code 配置（含本机绝对路径，不入库）
 .claude/
 
 # 参考用的原始游戏文本（版权原因，仅保留本地，不发布）
 src/参考资料/
+=======
+>>>>>>> 6bdf7c9c487192089e80293da029e2345f543a90
